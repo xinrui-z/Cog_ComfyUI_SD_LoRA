@@ -1,0 +1,177 @@
+{
+  "67": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "68",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "68": {
+    "inputs": {
+      "samples": [
+        "76",
+        0
+      ],
+      "vae": [
+        "77",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "69": {
+    "inputs": {
+      "model_type": "flux.1",
+      "text_encoder1": "t5xxl_fp8_e4m3fn.safetensors",
+      "text_encoder2": "open_clip_pytorch_model.safetensors",
+      "t5_min_length": 512
+    },
+    "class_type": "NunchakuTextEncoderLoaderV2",
+    "_meta": {
+      "title": "Nunchaku Text Encoder Loader V2"
+    }
+  },
+  "71": {
+    "inputs": {
+      "noise_seed": 205931121193482
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "72": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent图像"
+    }
+  },
+  "73": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+    }
+  },
+  "74": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 20,
+      "denoise": 1,
+      "model": [
+        "82",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "75": {
+    "inputs": {
+      "model": [
+        "82",
+        0
+      ],
+      "conditioning": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基本引导器"
+    }
+  },
+  "76": {
+    "inputs": {
+      "noise": [
+        "71",
+        0
+      ],
+      "guider": [
+        "75",
+        0
+      ],
+      "sampler": [
+        "73",
+        0
+      ],
+      "sigmas": [
+        "74",
+        0
+      ],
+      "latent_image": [
+        "72",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "77": {
+    "inputs": {
+      "vae_name": "flux_vae/diffusion_pytorch_model.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "78": {
+    "inputs": {
+      "text": "a cute dog",
+      "clip": [
+        "69",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "80": {
+    "inputs": {
+      "unet_name": "flux1-dev-fp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "82": {
+    "inputs": {
+      "lora_name": "flymy_realism.safetensors",
+      "strength_model": 1,
+      "model": [
+        "80",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoRA加载器（仅模型）"
+    }
+  }
+}
