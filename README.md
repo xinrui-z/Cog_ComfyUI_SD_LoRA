@@ -1,231 +1,184 @@
-# cog-comfyui
+# Cog-ComfyUI 部署 Stable Diffusion + LoRA 模型指南
 
-Run ComfyUI workflows on Replicate:
+本指南详细介绍如何使用 [Cog](https://github.com/replicate/cog) 将基于 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) 和自定义节点的 Stable Diffusion 工作流打包为 Docker 容器，并部署至 [Replicate](https://replicate.com/) 平台。
 
-- https://replicate.com/fofr/any-comfyui-workflow
-- https://replicate.com/fofr/any-comfyui-workflow-a100
+---
 
-We recommend:
+## Requirements
 
-- trying it on the website with your favorite workflow and making sure it works
-- using your own instance to run your workflow quickly and efficiently on Replicate (see the guide below)
-- using the production ready Replicate API to integrate your workflow into your own app or website
+在开始之前，请确保满足以下条件：
 
-## What’s included
+| 依赖           | 说明                                                         |
+| ------------ | ---------------------------------------------------------- |
+| 系统           | Linux/macOS (Windows 可使用 WSL2)                             |
+| Docker       | Cog 依赖 Docker 运行容器。安装并启动 Docker。<br>`bash docker info `    |
+| 模型权重         | 包括 LoRA 模型、基础模型等，放在 ComfyUI 的 `models` 目录下                 |
+| Replicate 账号 | [注册 Replicate](https://replicate.com/signin) 并获取 API Token |
 
-We've tried to include many of the most popular model weights and custom nodes:
+---
 
-- [View list of supported weights](https://github.com/replicate/cog-comfyui/blob/main/supported_weights.md)
-- [View list of supported custom nodes](https://github.com/replicate/cog-comfyui/blob/main/custom_nodes.json)
+## 部署流程概览
 
-Raise an issue to request more custom nodes or models, or use the `train` tab on Replicate to use your own weights (see below).
+部署分为两个阶段：
 
-## How to use
+1. **本地环境搭建与测试**
+   配置 ComfyUI、安装自定义节点、测试工作流。
+2. **使用 Cog 打包与部署**
+   将本地测试好的环境打包为 Docker 容器并推送到 Replicate。
 
-### 1. Get your API JSON
+---
 
-You’ll need the API version of your ComfyUI workflow. This is different to the commonly shared JSON version, it does not included visual information about nodes, etc.
+## 第一部分：本地 ComfyUI 环境搭建
 
-To get your API JSON:
+### 1. 安装 ComfyUI
 
-1. Turn on the "Enable Dev mode Options" from the ComfyUI settings (via the settings icon)
-2. Load your workflow into ComfyUI
-3. Export your API JSON using the "Save (API format)" button
-
-https://private-user-images.githubusercontent.com/319055/298630636-e3af1b59-ddd8-426c-a833-808e7f199fac.mp4
-
-### 2. Gather your input files
-
-If your model takes inputs, like images for img2img or controlnet, you have 3 options:
-
-#### Use a URL
-
-Modify your API JSON file to point at a URL:
-
-```diff
-- "image": "/your-path-to/image.jpg",
-+ "image": "https://example.com/image.jpg",
+```bash
+git clone https://github.com/comfyanonymous/ComfyUI.git
+cd ComfyUI
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+pip install -r requirements.txt
 ```
 
-#### Upload a single input
+### 2. 安装自定义节点
 
-You can also upload a single input file when running the model.
+安装 [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager) 和 [nunchaku](https://github.com/mit-han-lab/ComfyUI-nunchaku) 节点：
 
-This file will be saved as `input.[extension]` – for example `input.jpg`. It'll be placed in the ComfyUI `input` directory, so you can reference in your workflow with:
-
-```diff
-- "image": "/your-path-to/image.jpg",
-+ "image": "image.jpg",
+```bash
+cd custom_nodes
+git clone https://github.com/ltdrdata/ComfyUI-Manager.git
+git clone https://github.com/mit-han-lab/ComfyUI-nunchaku.git
 ```
 
-#### Upload a zip file or tar file of your inputs
+### 3. 安装 Nunchaku 后端库
 
-These will be downloaded and extracted to the `input` directory. You can then reference them in your workflow based on their relative paths.
-
-So a zip file containing:
-
-```
-- my_img.png
-- references/my_reference_01.jpg
-- references/my_reference_02.jpg
+```bash
+# 在 ComfyUI 虚拟环境中执行
+pip install https://github.com/nunchaku-tech/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp311-cp311-linux_x86_64.whl
 ```
 
-Might be used in the workflow like:
+> 注意：请根据 Python 版本和 CUDA 环境，选择合适的 `.whl` 文件。
 
-```
-"image": "my_img.png",
-...
-"directory": "references",
-```
+### 4. 下载模型权重
 
-### 3. Using custom LoRAs from CivitAI or HuggingFace
+将模型文件放入 `ComfyUI/models` 下对应目录：
 
-You can use LoRAs directly from CivitAI, HuggingFace, or any other URL in two ways:
+| 模型         | 来源                                                                                      | 路径                           |
+| ---------- | --------------------------------------------------------------------------------------- | ---------------------------- |
+| FLUX.1-vae | [Hugging Face](https://huggingface.co/diffusers/FLUX.1-vae/tree/main)                   | `./models/vae/`              |
+| FLUX-FP8   | [Hugging Face](https://huggingface.co/Kijai/flux-fp8/tree/main)                         | `./models/diffusion_models/` |
+| Flymy LoRA | [Hugging Face](https://huggingface.co/flymy-ai/qwen-image-realism-lora/tree/main)       | `./models/loras/`            |
+| t5xxl\_fp8 | [Hugging Face](https://huggingface.co/fmoraes2k/t5xxl_fp8_e4m3fn.safetensors/tree/main) | `./models/text_encoders/`    |
 
-#### Option 1: Use the LoraLoader node with a URL
+### 5. 启动并测试工作流
 
-Use the direct download URL as the `lora_name`:
-
-```
-{
-    "inputs": {
-      "lora_name": "https://huggingface.co/username/model/resolve/main/lora.safetensors",
-      ...
-    },
-    "class_type": "LoraLoader"
-}
-```
-
-#### Option 2: Use the LoraLoaderFromURL node
-
-Alternatively, use the dedicated LoraLoaderFromURL node from [ComfyUI-GlifNodes](https://github.com/glifxyz/ComfyUI-GlifNodes):
-
-```
-{
-    "inputs": {
-      "url": "https://civitai.com/api/download/models/1163532",
-      // ...
-    },
-    "class_type": "LoraLoaderFromURL"
-}
-```
-
-Both methods work the same way - the standard LoraLoader will automatically switch to use LoraLoaderFromURL when it detects a URL in the `lora_name` field.
-
-### Run your workflow
-
-With all your inputs updated, you can now run your workflow.
-
-Some workflows save temporary files, for example pre-processed controlnet images. You can also return these by enabling the `return_temp_files` option.
-
-## How to use your own dedicated instance
-
-The `any-comfyui-workflow` model on Replicate is a shared public model. This means many users will be sending workflows to it that might be quite different to yours. The effect of this will be that the internal ComfyUI server may need to swap models in and out of memory, this can slow down your prediction time.
-
-ComfyUI and it's custom nodes are also continually being updated. While this means the newest versions are usually running, if there are breaking changes to custom nodes then your workflow may stop working.
-
-If you have your own dedicated instance you will:
-
-- fix the code and custom nodes to a known working version
-- have a faster prediction time by keeping just your models in memory
-- benefit from ComfyUI’s own internal optimisations when running the same workflow repeatedly
-
-### Options for using your own instance
-
-To get the best performance from the model you should run a dedicated instance. You have 3 choices:
-
-1. Create a private deployment (simplest, but you'll need to pay for setup and idle time)
-2. Create and deploy a fork using Cog (most powerful but most complex)
-3. Create a new model from the train tab (simple, your model can be public or private and you can bring your own weights)
-
-### 1. Create a private deployment
-
-Go to:
-
-https://replicate.com/deployments/create
-
-Select `fofr/any-comfyui-workflow` as the model you'd like to deploy. Pick your hardware and min and max instances, and you're ready to go. You'll be pinned to the version you deploy from. When `any-comfyui-workflow` is updated, you can test your workflow with it, and then deploy again using the new version.
-
-You can read more about deployments in the Replicate docs:
-
-https://replicate.com/docs/deployments
-
-### 2. Create and deploy a fork using Cog
-
-You can use this repository as a template to create your own model. This gives you complete control over the ComfyUI version, custom nodes, and the API you'll use to run the model.
-
-You'll need to be familiar with Python, and you'll also need a GPU to push your model using [Cog](https://cog.run). Replicate has a good getting started guide: https://replicate.com/docs/guides/push-a-model
-
-#### Example
-
-The `kolors` model on Replicate is a good example to follow:
-
-- https://replicate.com/fofr/kolors (The model with it’s customised API)
-- https://github.com/replicate/cog-comfyui-kolors (The new repo)
-
-It was created from this repo, and then deployed using Cog. You can step through the commits of that repo to see what was changed and how, but broadly:
-
-- this repository is used as a template
-- the script [`scripts/prepare_template.py`](https://github.com/replicate/cog-comfyui/blob/main/scripts/prepare_template.py) is run first, to remove examples and unnecessary boilerplate
-- `custom_nodes.json` is modified to add or remove custom nodes you need, making sure to also add or remove their dependencies from `cog.yaml`
-- run `./scripts/install_custom_nodes.py` to install the custom nodes (or `./scripts/reset.py` to reinstall ComfyUI and all custom nodes)
-- the workflow is added as `workflow_api.json`
-- `predict.py` is updated with a new API and the `update_workflow` method is changed so that it modifies the right parts of the JSON
-- the model is tested using `cog predict -i option_name=option_value -i another_option_name=another_option_value` on a GPU
-- the model is pushed to Replicate using `cog push r8.im/your-username/your-model-name`
-
-### 3. Create a new model from the train tab
-
-Visit the train tab on Replicate:
-
-https://replicate.com/fofr/any-comfyui-workflow/train
-
-Here you can give public or private URLs to weights on HuggingFace and CivitAI. If URLs are private or need authentication, make sure to include an API key or access token.
-
-Check the training logs to see what filenames to use in your workflow JSON. For example:
-
-```
-Downloading from HuggingFace:
-...
-Size of the tar file: 217.88 MB
-====================================
-When using your new model, use these filenames in your JSON workflow:
-araminta_k_midsommar_cartoon.safetensors
-```
-
-After running the training, you'll have your own ComfyUI model with your customised weights loaded during model setup. To prevent others from using it, you can make it private. Private models are billed differently to public models on Replicate.
-
-## Developing locally
-
-Clone this repository:
-
-```sh
-git clone --recurse-submodules https://github.com/replicate/cog-comfyui.git
-```
-
-Run the [following script](https://github.com/replicate/cog-comfyui/blob/main/scripts/install_custom_nodes.py) to install all the custom nodes:
-
-```sh
-./scripts/install_custom_nodes.py
-```
-
-You can view the list of nodes in [custom_nodes.json](https://github.com/replicate/cog-comfyui/blob/main/custom_nodes.json)
-
-### Running the Web UI from your Cog container
-
-1. **GPU Machine**: Start the Cog container and expose port 8188:
-```sh
-sudo cog run -p 8188 bash
-```
-Running this command starts up the Cog container and let's you access it
-
-2. **Inside Cog Container**: Now that we have access to the Cog container, we start the server, binding to all network interfaces:
-```sh
-cd ComfyUI/
+```bash
+cd .. # 返回 ComfyUI 根目录
 python main.py --listen 0.0.0.0
 ```
 
-3. **Local Machine**: Access the server using the GPU machine's IP and the exposed port (8188):
-`http://<gpu-machines-ip>:8188`
+* 访问 `http://<你的机器IP>:8188`
+* 加载工作流 JSON 文件（例如 `sd_lora_api.json`）
+* 确认所有节点和模型正确加载，并能生成图片
+* 记录 API 参数节点（如 `seed`, `prompt`, `lora_strength`），在 `predict.py` 中使用
 
-When you goto `http://<gpu-machines-ip>:8188` you'll see the classic ComfyUI web form!
+> 示例工作流：[sd\_lora\_api.json](./examples/api_workflows/sd_lora_api.json)
+
+---
+
+## 第二部分：使用 Cog 打包部署
+
+### 1. 安装 Cog
+
+```bash
+sudo curl -o /usr/local/bin/cog -L "https://github.com/replicate/cog/releases/latest/download/cog_$(uname -s)_$(uname -m)"
+sudo chmod +x /usr/local/bin/cog
+```
+
+### 2. 初始化 Cog 项目
+
+```bash
+git clone --recurse-submodules https://github.com/replicate/cog-comfyui.git my-comfyui-app
+cd my-comfyui-app
+```
+
+### 3. 替换并配置 ComfyUI
+
+```bash
+rm -rf ComfyUI
+cp -r /path/to/your/fully-tested/ComfyUI ./
+```
+
+### 4. 配置 `cog.yaml` 与 `predict.py`
+
+**cog.yaml 示例**：
+
+```yaml
+build:
+  gpu: true
+  cuda: "11.8"
+  cudnn: "8"
+  python_version: "3.10"
+  python_packages:
+    - "torch==2.0.1+cu118"
+    - "torchvision==0.15.2+cu118"
+    - "nunchaku==0.3.1+torch2.7"
+    - "https://github.com/nunchaku-tech/nunchaku/releases/download/v0.3.1/nunchaku-0.3.1+torch2.7-cp310-cp310-linux_x86_64.whl"
+  system_packages:
+    - "libgl1"
+    - "libglib2.0-0"
+  run:
+    - "cd ComfyUI && pip install -r requirements.txt"
+    - "./scripts/install_custom_nodes.py"
+
+predict: "predict.py:Predictor"
+```
+
+**predict.py 示例**：
+
+```python
+import os
+from cog import BasePredictor, Input, Path
+from comfyui import ComfyUI
+
+class Predictor(BasePredictor):
+    def setup(self):
+        self.comfyUI = ComfyUI("127.0.0.1:8188")
+        self.comfyUI.start_server("--listen 127.0.0.1 --port 8188")
+        self.workflow = self.comfyUI.load_workflow("workflow_api.json")
+
+    def predict(
+        self,
+        prompt: str = Input(description="正向提示"),
+        negative_prompt: str = Input(description="负向提示", default=""),
+        seed: int = Input(description="随机种子", default=-1),
+        lora_strength: float = Input(description="LoRA 权重", default=0.8, ge=0.0, le=2.0),
+    ) -> Path:
+        self.workflow["6"]["inputs"]["text"] = prompt
+        self.workflow["7"]["inputs"]["text"] = negative_prompt
+        self.workflow["3"]["inputs"]["seed"] = seed
+        self.workflow["10"]["inputs"]["strength_model"] = lora_strength
+
+        output_path = self.comfyUI.run_workflow(self.workflow)
+        return Path(output_path)
+```
+
+> 注意：节点 ID 必须与 `workflow_api.json` 中一致，可通过 UI 或脚本确认。
+
+### 5. 本地测试 Cog 构建
+
+```bash
+cog build
+cog predict -i prompt="a beautiful landscape" -i seed=42
+```
+
+### 6. 部署到 Replicate
+
+```bash
+cog login
+cog push r8.im/your-username/your-model-name
+```
+
+成功推送后，可在 Replicate 页面测试 API 并获取调用代码。
