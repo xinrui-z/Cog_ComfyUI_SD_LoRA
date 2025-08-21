@@ -13,15 +13,6 @@
 *.webp
 *.webm
 
-# Models
-*.ckpt
-*.safetensors
-*.pth
-*.bin
-*.onnx
-*.torchscript
-*.engine
-# .pt files are used by efficiency-nodes-comfyui
 
 # Files
 scripts/*
@@ -32,17 +23,14 @@ downloaded_user_models/
 *.ipynb
 *.bat
 
-# ComfyUI
-ComfyUI/venv
+
+# ComfyUI/venv
+!ComfyUI/custom_nodes/**
 ComfyUI/temp
 ComfyUI/user
-ComfyUI/models
-ComfyUI/custom_nodes/comfyUI_controlnet_aux/ckpts
-ComfyUI/custom_nodes/ComfyUI-AnimateDiff-Evolved/models
-ComfyUI/custom_nodes/ComfyUI-AnimateDiff-Evolved/motion_lora
-ComfyUI/custom_nodes/efficiency-nodes-comfyui/images
 
-# ComfyUI bits we just don’t need
+
+# ComfyUI bits we just don't need
 ComfyUI/tests
 ComfyUI/tests-ui
 ComfyUI/tests-unit

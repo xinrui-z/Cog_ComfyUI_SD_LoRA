@@ -11,23 +11,28 @@ from weights_downloader import WeightsDownloader
 from cog_model_helpers import optimise_images
 from config import config
 import requests
+import json
 
-
+# 环境变量配置
 os.environ["DOWNLOAD_LATEST_WEIGHTS_MANIFEST"] = "true"
 os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
 
+# MIME 类型注册
 mimetypes.add_type("image/webp", ".webp")
 mimetypes.add_type("video/webm", ".webm")
 
+# 全局目录
 OUTPUT_DIR = "/tmp/outputs"
 INPUT_DIR = "/tmp/inputs"
 COMFYUI_TEMP_OUTPUT_DIR = "ComfyUI/temp"
 ALL_DIRECTORIES = [OUTPUT_DIR, INPUT_DIR, COMFYUI_TEMP_OUTPUT_DIR]
 
+# 支持文件类型
 IMAGE_TYPES = [".jpg", ".jpeg", ".png", ".webp"]
 VIDEO_TYPES = [".mp4", ".mov", ".avi", ".mkv", ".webm"]
 
-with open("examples/api_workflows/birefnet_api.json", "r") as file:
+# 默认示例 workflow
+with open("examples/api_workflows/sd_lora_api.json", "r") as file:
     EXAMPLE_WORKFLOW_JSON = file.read()
 
 
@@ -112,11 +117,15 @@ class Predictor(BasePredictor):
     def predict(
         self,
         workflow_json: str = Input(
-            description="Your ComfyUI workflow as JSON string or URL. You must use the API version of your workflow. Get it from ComfyUI using 'Save (API format)'. Instructions here: https://github.com/replicate/cog-comfyui",
+            description="Your ComfyUI workflow as JSON string or URL. You must use the API version of your workflow. Get it from ComfyUI using 'Save (API format)'.",
             default="",
         ),
         input_file: Optional[Path] = Input(
-            description="Input image, video, tar or zip file. Read guidance on workflows and input files here: https://github.com/replicate/cog-comfyui. Alternatively, you can replace inputs with URLs in your JSON workflow and the model will download them."
+            description="Input image, video, tar or zip file."
+        ),
+        prompt: str = Input(
+            description="Optional prompt to override the prompt in your workflow JSON.",
+            default="",
         ),
         return_temp_files: bool = Input(
             description="Return any temporary files, such as preprocessed controlnet images. Useful for debugging.",
@@ -147,6 +156,19 @@ class Predictor(BasePredictor):
                 workflow_json_content = response.text
             except requests.exceptions.RequestException as e:
                 raise ValueError(f"Failed to download workflow JSON from URL: {e}")
+
+        if not workflow_json_content:
+            workflow_json_content = EXAMPLE_WORKFLOW_JSON
+
+        # 替换 workflow JSON 中的 prompt
+        wf_dict = json.loads(workflow_json_content)
+        if prompt:
+            for node in wf_dict.get("nodes", []):
+                params = node.get("parameters", {})
+                if "prompt" in params:
+                    params["prompt"] = prompt
+                    node["parameters"] = params
+        workflow_json_content = json.dumps(wf_dict)
 
         wf = self.comfyUI.load_workflow(workflow_json_content or EXAMPLE_WORKFLOW_JSON)
 

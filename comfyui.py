@@ -10,6 +10,7 @@ import websocket
 import random
 import requests
 import shutil
+import sys
 import custom_node_helpers as helpers
 from cog import Path
 from node import Node
@@ -26,6 +27,12 @@ class ComfyUI:
         self.input_directory = input_directory
         self.output_directory = output_directory
         self.apply_helper_methods("prepare", weights_downloader=self.weights_downloader)
+        
+        # 确保当前进程也能找到自定义节点
+        custom_nodes_path = os.path.join(os.getcwd(), "ComfyUI", "custom_nodes")
+        if custom_nodes_path not in sys.path:
+            sys.path.insert(0, custom_nodes_path)
+            print(f"添加到 sys.path: {custom_nodes_path}")
 
         start_time = time.time()
         server_thread = threading.Thread(
@@ -41,7 +48,24 @@ class ComfyUI:
         print(f"Server started in {elapsed_time:.2f} seconds")
 
     def run_server(self, output_directory, input_directory):
+        print("启动 ComfyUI 服务器...")
+        print(f"工作目录: {os.getcwd()}")
+        # 添加自定义节点路径到环境变量
+        env = os.environ.copy()
+        current_pythonpath = env.get('PYTHONPATH', '')
+        custom_nodes_path = os.path.join(os.getcwd(), "ComfyUI", "custom_nodes")
+        print(f"自定义节点路径: {custom_nodes_path}")
+        print(f"路径是否存在: {os.path.exists(custom_nodes_path)}")
+        
+        if current_pythonpath:
+            new_pythonpath = f"{current_pythonpath}:{custom_nodes_path}"
+        else:
+            new_pythonpath = custom_nodes_path
+        
+        env['PYTHONPATH'] = new_pythonpath
+        print(f"PYTHONPATH: {new_pythonpath}")
         command = f"python ./ComfyUI/main.py --output-directory {output_directory} --input-directory {input_directory} --disable-metadata"
+        print(f"执行命令: {command}")
 
         """
         We need to capture the stdout and stderr from the server process
@@ -55,6 +79,7 @@ class ComfyUI:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             universal_newlines=True,
+            env=env
         )
 
         def print_stdout():
