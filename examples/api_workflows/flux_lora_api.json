@@ -31,8 +31,8 @@
   "69": {
     "inputs": {
       "model_type": "flux.1",
-      "text_encoder1": "t5xxl_fp8_e4m3fn.safetensors",
-      "text_encoder2": "open_clip_pytorch_model.safetensors",
+      "text_encoder1": "flux1-dev/text_encoder/model.safetensors",
+      "text_encoder2": "t5xxl_fp8_e4m3fn.safetensors",
       "t5_min_length": 512
     },
     "class_type": "NunchakuTextEncoderLoaderV2",
@@ -42,7 +42,7 @@
   },
   "71": {
     "inputs": {
-      "noise_seed": 205931121193482
+      "noise_seed": 72800491241287
     },
     "class_type": "RandomNoise",
     "_meta": {
@@ -75,7 +75,7 @@
       "steps": 20,
       "denoise": 1,
       "model": [
-        "82",
+        "83",
         0
       ]
     },
@@ -87,7 +87,7 @@
   "75": {
     "inputs": {
       "model": [
-        "82",
+        "83",
         0
       ],
       "conditioning": [
@@ -130,7 +130,7 @@
   },
   "77": {
     "inputs": {
-      "vae_name": "flux_vae/diffusion_pytorch_model.safetensors"
+      "vae_name": "flux1-dev/vae/diffusion_pytorch_model.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
@@ -152,7 +152,7 @@
   },
   "80": {
     "inputs": {
-      "unet_name": "flux1-dev-fp8.safetensors",
+      "unet_name": "flux1-dev/flux1-dev.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -160,18 +160,23 @@
       "title": "UNet加载器"
     }
   },
-  "82": {
+  "83": {
     "inputs": {
-      "lora_name": "flymy_realism.safetensors",
+      "lora_name": "flux-lora-collection/art_lora.safetensors",
       "strength_model": 1,
+      "strength_clip": 0.5,
       "model": [
         "80",
         0
+      ],
+      "clip": [
+        "69",
+        0
       ]
     },
-    "class_type": "LoraLoaderModelOnly",
+    "class_type": "LoraLoader",
     "_meta": {
-      "title": "LoRA加载器（仅模型）"
+      "title": "加载LoRA"
     }
   }
 }

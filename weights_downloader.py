@@ -21,6 +21,7 @@ class WeightsDownloader:
     def __init__(self):
         self.weights_manifest = WeightsManifest()
         self.weights_map = self.weights_manifest.weights_map
+        self.comfyui_base_path = "/src/ComfyUI"
 
     def get_canonical_weight_str(self, weight_str):
         return self.weights_manifest.get_canonical_weight_str(weight_str)
@@ -29,6 +30,12 @@ class WeightsDownloader:
         return self.weights_manifest.get_weights_by_type(type)
 
     def download_weights(self, weight_str):
+        # 首先检查本地是否已经有这个文件
+        if self.check_local_file_exists(weight_str):
+            print(f"✅ Using local model: {weight_str}")
+            return
+        
+        # 如果本地没有，再检查官方支持列表
         if weight_str in self.weights_map:
             if self.weights_manifest.is_non_commercial_only(weight_str):
                 print(
@@ -50,6 +57,46 @@ class WeightsDownloader:
             raise ValueError(
                 f"{weight_str} unavailable. View the list of available weights: https://github.com/replicate/cog-comfyui/blob/main/supported_weights.md"
             )
+
+    def check_local_file_exists(self, weight_str):
+        """检查本地是否已经有这个模型文件"""
+        # 检查标准模型目录
+        model_dirs = [
+            "models/checkpoints",
+            "models/loras", 
+            "models/vae",
+            "models/controlnet",
+            "models/clip",
+            "models/clip_vision",
+            "models/animatediff_models",
+            "models/upscale_models",
+            "models/embeddings",
+            "models/diffusers",
+            "models/unet",
+            "models/fooocus",
+            "models/diffusion_models",
+            "models/text_encoders"
+        ]
+        
+        for dir_name in model_dirs:
+            file_path = os.path.join(self.comfyui_base_path, dir_name, weight_str)
+            if os.path.exists(file_path):
+                print(f"Found local model at: {file_path}")
+                return True
+        
+        # 检查可能的多级目录结构
+        possible_paths = [
+            os.path.join(self.comfyui_base_path, "models", weight_str),
+            os.path.join(self.comfyui_base_path, weight_str),
+            os.path.join("/src", weight_str)
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                print(f"Found local model at: {path}")
+                return True
+        
+        return False
 
     def check_if_file_exists(self, weight_str, dest):
         if dest.endswith(weight_str):
