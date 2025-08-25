@@ -26,10 +26,11 @@ cd ComfyUI_Flux_LoRA
 
 | 模型         | 来源                                                                                      | 路径                           |
 | ---------- | --------------------------------------------------------------------------------------- | ---------------------------- |
-| FLUX.1-vae | [Hugging Face](https://huggingface.co/diffusers/FLUX.1-vae/tree/main)                   | `./models/vae/`              |
-| FLUX-FP8   | [Hugging Face](https://huggingface.co/Kijai/flux-fp8/tree/main)                         | `./models/diffusion_models/` |
-| Flymy LoRA | [Hugging Face](https://huggingface.co/flymy-ai/qwen-image-realism-lora/tree/main)       | `./models/loras/`            |
+| FLUX.1-vae | [Hugging Face](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/vae/diffusion_pytorch_model.safetensors)                   | `./models/vae/`              |
+| FLUX.1-FP8   | [Hugging Face](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/flux1-dev.safetensors)                         | `./models/diffusion_models/` |
+| Flux-LoRA | [Hugging Face](https://huggingface.co/XLabs-AI/flux-lora-collection/tree/main)       | `./models/loras/`            |
 | t5xxl\_fp8 | [Hugging Face](https://huggingface.co/fmoraes2k/t5xxl_fp8_e4m3fn.safetensors/tree/main) | `./models/text_encoders/`    |
+| FLUX.1-Text-Encoder | [Hugging Face](https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/text_encoder/model.safetensors) | `./models/text_encoders/`    |
 
 下载完成后可执行预测：
 
@@ -57,4 +58,5 @@ ssy push your-username/your-model-name
 ```
 
 推送成功后，可在胜算云页面测试 API 并获取调用代码。
+
 
